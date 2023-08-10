@@ -22,9 +22,9 @@ const useSearchInput = () => {
     return searchInput ? searchInput : "";
 };
 
-const neo4jServerUrl = "bolt://icp-bolt.dev.magda.io:443";
+const neo4jServerUrl = "bolt://velocity-ev.nexus.csiro.au:7687"; //"bolt://icp-bolt.dev.magda.io:443";
 const neo4jUsername = "neo4j";
-const neo4jPassword = "icp2020";
+const neo4jPassword = "icp20236";
 const MAX_DATASET_NUM = 10;
 
 // (window as any).neo4jDB = neo4j.driver(
@@ -85,6 +85,7 @@ async function queryEnities(
             searchText
         }
     );
+
     return result.records.map((item) => ({
         node: item.get("node"),
         score: item.get("score")
@@ -102,8 +103,11 @@ type RecommendedDatasetItem = {
     rel: string;
     e1: string;
     e2: string;
+    e1_score: number;
+    e2_score: number;
     isRelLeftRoRight: boolean;
     score: number;
+    entity_id: object;
 };
 
 type RecommendReasonType = {
@@ -134,26 +138,37 @@ async function searchRecommandationWithEnities(
                 d.id as datasetId, 
                 d.name as datasetTitle, 
                 e2.name as e2Name,
+                e2.node_score as e2Score,
                 startNode(r)=e1 as isRelLeftRoRight`,
             {
                 entityId: entities[i].node.identity
             }
         );
-        result.records.forEach((item) =>
+        result.records.forEach((item) => {
+            let e1_node_score = entities[i].node.properties.node_score;
+            e1_node_score = 10 * entities[i].score;
+            const score = e1_node_score * item.get("e2Score");
+            //const score = item.get("e2Score");
             rows.push({
                 datasetId: item.get("datasetId"),
                 datasetTitle: item.get("datasetTitle"),
                 rel: item.get("rel"),
                 e1: entities[i].node.properties.name as string,
                 e2: item.get("e2Name"),
+                e1_score: entities[i].score,
+                e2_score: item.get("e2Score"),
                 isRelLeftRoRight: item.get("isRelLeftRoRight"),
-                score: entities[i].score
-            })
-        );
+                score: score,
+                entity_id: entities[i].node.identity
+            });
+        });
     }
+
     console.log("before nerge: ", rows);
 
     rows.sort((a, b) => b.score - a.score);
+
+    console.log("sorted rows: ", rows);
 
     rows = uniqBy(
         rows,
@@ -188,12 +203,14 @@ const queryRecommandation = async (text: string) => {
         const session = await openSession(driver, {
             defaultAccessMode: "READ"
         });
-        const entities = await queryEnities(session, text);
-        console.log("entities: ", entities);
+        let entities = await queryEnities(session, text);
+        console.log("### before sorted entities: ", entities);
+        entities.sort((a, b) => b.score - a.score);
+        console.log("### sorted entities: ", entities);
 
         const rows = await searchRecommandationWithEnities(session, entities);
 
-        console.log("rows: ", rows);
+        console.log("### rows: ", rows);
 
         const recommendedDatasetList: {
             [datasetId: string]: ConsolidatedRecommendedDatasetItem;
