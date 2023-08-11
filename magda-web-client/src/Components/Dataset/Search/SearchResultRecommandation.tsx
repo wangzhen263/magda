@@ -22,7 +22,7 @@ const useSearchInput = () => {
     return searchInput ? searchInput : "";
 };
 
-const neo4jServerUrl = "bolt://velocity-ev.nexus.csiro.au:7687"; //"bolt://icp-bolt.dev.magda.io:443";
+const neo4jServerUrl = "bolt://velocity-ev:7687"; //"bolt://icp-bolt.dev.magda.io:443";
 const neo4jUsername = "neo4j";
 const neo4jPassword = "icp20236";
 const MAX_DATASET_NUM = 10;
@@ -145,6 +145,7 @@ async function searchRecommandationWithEnities(
             }
         );
         result.records.forEach((item) => {
+            console.log(entities[i].node.properties.name);
             let e1_node_score = entities[i].node.properties.node_score;
             e1_node_score = 10 * entities[i].score;
             const score = e1_node_score * item.get("e2Score");
@@ -168,7 +169,11 @@ async function searchRecommandationWithEnities(
 
     rows.sort((a, b) => b.score - a.score);
 
-    console.log("sorted rows: ", rows);
+    rows.forEach(function (item, index, object) {
+        if (item.datasetTitle == "Basketball Court") {
+            object.splice(index, 1);
+        }
+    });
 
     rows = uniqBy(
         rows,
@@ -204,6 +209,7 @@ const queryRecommandation = async (text: string) => {
             defaultAccessMode: "READ"
         });
         let entities = await queryEnities(session, text);
+
         console.log("### before sorted entities: ", entities);
         entities.sort((a, b) => b.score - a.score);
         console.log("### sorted entities: ", entities);

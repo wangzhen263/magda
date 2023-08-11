@@ -997,7 +997,7 @@ export const config: ConfigDataType = {
         : 300000,
     chatBotApiBaseUrl: serverConfig?.chatBotApiBaseUrl
         ? serverConfig.chatBotApiBaseUrl
-        : "/chatbot"
+        : "http://velocity-ev:8066/v1/chat/plaincompletion"
 };
 
 export type Config = typeof config;
